@@ -18,7 +18,7 @@ dependencies:
   - brotlicffi=1.0.9.2
   - bzip2=1.0.8
   - ca-certificates=2025.2.25
-  - certifi=2025.6.15
+  - certifi=2025.7.14
   - cffi=1.17.1
   - charset-normalizer=3.3.2
   - colorama=0.4.6
@@ -110,7 +110,7 @@ dependencies:
   - numpy=2.3.1
   - numpy-base=2.3.1
   - openjpeg=2.5.2
-  - openssl=3.0.16
+  - openssl=3.0.17
   - overrides=7.4.0
   - packaging=24.2
   - pandas=2.2.3
@@ -172,14 +172,17 @@ dependencies:
   - tinycss2=1.4.0
   - tk=8.6.14
   - tornado=6.5.1
+  - tqdm=4.67.1
   - traitlets=5.14.3
   - typing-extensions=4.12.2
   - typing_extensions=4.12.2
   - tzdata=2025b
+  - ucrt=10.0.22621.0
   - uriparser=0.9.8
   - urllib3=2.5.0
   - vc=14.42
-  - vs2015_runtime=14.42.34433
+  - vc14_runtime=14.44.35208
+  - vs2015_runtime=14.44.35208
   - wcwidth=0.2.13
   - webencodings=0.5.1
   - websocket-client=1.8.0
