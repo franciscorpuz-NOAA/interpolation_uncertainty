@@ -1,6 +1,11 @@
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 import matplotlib.pyplot as plt
 from scipy import signal
+import sys
+
+sys.path.append("../") 
+from interpolation_uncertainty.uncertainty_estimation.tiffread_utils import trace_function
 
 
 def get_column_indices(
@@ -8,11 +13,9 @@ def get_column_indices(
     resolution: int,
     linespacing_meters: int,
     max_multiple: int,
-    verbose: bool = False,
 ):
     """
     Determine indices of the columns to be used as sampling lines
-    Dependent on the maximum multiple of the linespacing to be used as window size
 
     Parameters:
     -----------
@@ -23,7 +26,8 @@ def get_column_indices(
     linespacing_meters : int
                             distance between 2 vertical sample lines (m)
     max_multiple : int
-                    maximum multiple of the linespacing to be used as window size for FFT
+                    maximum multiple of the linespacing to be used
+                    as window size for FFT
 
 
     Returns:
@@ -33,50 +37,48 @@ def get_column_indices(
 
     """
 
-    # Round the desired linespacing to the nearest even integer for computational convenience
+    # Round the desired linespacing to the nearest even integer
+    # for computational convenience
     linespacing_in_pixels = np.round(linespacing_meters / resolution)
     if (linespacing_in_pixels % 2) != 0:
         linespacing_in_pixels = linespacing_in_pixels - 1
 
     if array_len < linespacing_in_pixels:
         raise ValueError(
-            f"""Data length should be greater than the desired linespacing.
-                            Entered Linespacing: {linespacing_meters}m
-                            Survey width: {array_len * resolution}m"""
+            f"""
+            Desired linespacing should be less than the Spatial coverage.
+            Entered Linespacing: {linespacing_meters}m
+            Bathemetric coverage: {array_len * resolution}m"""
         )
 
-    # The first and last columns to be sampled is determined by the window size/length
+    # Valid sampling columns is determined by the window length
+    # Window lengths are multiples of the linespacing
     window_size_pixels = linespacing_in_pixels * max_multiple
     start_col = int(
-        (window_size_pixels // max_multiple) - (linespacing_in_pixels // max_multiple)
-    )
+        (window_size_pixels // 2) -
+        (linespacing_in_pixels // 2)
+                    )
+
     last_col = int(
         array_len
-        - (window_size_pixels // max_multiple)
-        + (linespacing_in_pixels // max_multiple)
+        - (window_size_pixels // 2)
+        + (linespacing_in_pixels // 2)
         - 1
     )
 
     # actual sampling indices will be determined by the desired linespacing
-    col_indxs = np.arange(start_col, last_col, (linespacing_in_pixels + 1)).astype(int)
-
-    if verbose:
-        print(f"File width: {array_len}")
-        print(f"Max multiple for window size: {max_multiple}")
-        print(f"Desired linespacing (m): {linespacing_meters}")
-        print(
-            f"Linespacing (m)/(pixel) to be used: {int(linespacing_in_pixels * resolution)}m/{int(linespacing_in_pixels)}pixels"
-        )
+    col_indxs = np.arange(start_col,
+                          last_col,
+                          (linespacing_in_pixels + 1)).astype(int)
 
     return col_indxs
 
 
 def get_strip(
-    depth: np.array,
+    row: np.ndarray,
     column_indices: tuple[int, int],
     multiple: int,
-    verbose: bool = False,
-) -> np.array:
+) -> np.ndarray:
     """
     Retrieve section of the bathymetric data for FFT processing given
     column indices and multiple of the linespacing
@@ -92,11 +94,12 @@ def get_strip(
     column_indices : np.array
                     column indices/location of the sampling lines
     multiple : int
-            Determines the width of the window size with reference to the linespacing
+            Determines the width of the window size with reference 
+            to the linespacing
 
     Returns
     --------
-    segment : np.array
+    strip : np.array
             a segment of the bathymetric data for further FFT processing
 
 
@@ -111,45 +114,22 @@ def get_strip(
     # Determine indices for the window segment, include sampling columns
     start_col = int(midpoint - (window_size // 2))
     end_col = int(midpoint + (window_size // 2))
-    window = depth[:, start_col:end_col]
+    strip = np.array([x[start_col:end_col] for x in row])
+    # if len(row.shape) > 1:
+    #     strip = row[:, start_col:end_col]
+    # else:
+    #     strip = row[start_col:end_col]
 
-    if verbose:
-        print(
-            f"""
-            Current column: {start}
-            Current multiple: {current_multiple}
-            Midpoint: {midpoint}
-            Linespacing: {linespacing}
-            start_col: {start_col}
-            end_col: {end_col}
-            window length: {len(window)}
-        """
-        )
-        plt.figure()
-        plt.plot(np.arange(start_col, end_col), window, label="Window")
-        locs, _ = plt.xticks()
-        plt.xticks(locs, labels=[int(x + start_col) for x in locs], rotation=90)
-        plt.vlines(
-            [start_col, end_col, midpoint],
-            ymin=np.min(window),
-            ymax=np.max(window),
-            color="gray",
-            linestyle="--",
-            alpha=0.2,
-        )
-        plt.xlabel("Data Columns (pixels)")
-        plt.ylabel("Depth (m)")
-        plt.legend()
-
-    return window
+    return strip
 
 
-def compute_residual(data_strip: np.array, verbose: bool = False) -> np.array:
+def compute_residual(data_strip: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
-    Compute the residual error from estimating the data using linear interpolation
+    Compute the residual error from estimating the data using
+    linear interpolation
 
-    This function computes the estimate for the data strip using the edge values
-    and returns the residual error
+    This function computes the estimate for the data strip
+    using the edge values and returns the residual error
 
     Parameters
     ----------
@@ -166,46 +146,20 @@ def compute_residual(data_strip: np.array, verbose: bool = False) -> np.array:
                Difference of the interpolation from the input data strip
 
     """
+
     interpolated_strip = np.array(
-        [np.linspace(start=x[0], stop=x[-1], num=len(x)) for x in data_strip]
-    )
+                        [np.linspace(start=x[0],
+                                     stop=x[-1],
+                                     num=len(x)) for x in data_strip])
+
     residual = data_strip - interpolated_strip
-
-    if verbose:
-        print(f"Input length: {len(data_strip)}")
-        print(f"Interpolation length: {len(interpolated_strip)}")
-
-        plt.figure(figsize=(15, 5))
-        plt.subplot(121)
-        plt.plot(data_strip, label="Depth")
-        plt.plot(interpolated_strip, label="Interpolation")
-        plt.vlines(
-            [0, len(residual)],
-            ymin=np.min(data_strip),
-            ymax=np.max(data_strip),
-            color="gray",
-            linestyle="--",
-            alpha=0.2,
-        )
-        plt.xlabel("Data Columns (pixels)")
-        plt.ylabel("Bathymetry (m)")
-        plt.legend()
-        plt.title(f"Interpolated Data")
-
-        plt.subplot(122)
-        plt.plot(residual, label="Residual")
-        plt.hlines(
-            [0], xmin=0, xmax=len(residual), color="gray", linestyle="--", alpha=0.2
-        )
-        plt.xlabel("Data Columns (pixels)")
-        plt.ylabel("Residual Error (m)")
-        plt.legend()
-        plt.title(f"Residual Data")
 
     return residual, interpolated_strip
 
 
-def preprocess_fft_input(data: np.array, windowing: str, verbose: bool = False):
+def preprocess_fft_input(data: np.ndarray, 
+                         windowing: str, 
+                         verbose: bool = False):
     """
     Apply pre-processing to FFT input
 
@@ -247,12 +201,12 @@ def preprocess_fft_input(data: np.array, windowing: str, verbose: bool = False):
 
 
 def compute_energy(
-    data: np.array,
+    data: np.ndarray,
     resolution: int,
     method: str,
-    window_values: np.array,
+    window_values: np.ndarray,
     verbose: bool = False,
-) -> np.array:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute FFT energy using 'method' process
 
@@ -351,14 +305,14 @@ def create_spatial_signal(resolution: int, max_cell_number: int):
 
 
 def compute_fft_uncertainty(
-    data: np.array,
+    data: np.ndarray,
     multiple: int,
     resolution: int,
-    windowing: str = None,
+    windowing: str = 'hann',
     method: str = "amplitude",
     selection: str = "half",
     verbose: bool = False,
-) -> np.array:
+) -> np.ndarray:
     """
     Estimate the uncertainty using FFT
 
@@ -408,17 +362,17 @@ def compute_fft_uncertainty(
     estimate = np.zeros(linespacing_width)  # Include sampling lines in output length
 
     if selection == "half":
-        estimate[: (linespacing_width // 2)] = window_uncertainty[
-            : (linespacing_width // 2)
+        estimate[:(linespacing_width//2)] = window_uncertainty[
+            : (linespacing_width//2)
         ]
-        estimate[-(linespacing_width // 2) :] = np.flip(
-            window_uncertainty[: (linespacing_width // 2)]
+        estimate[-(linespacing_width//2):] = np.flip(
+            window_uncertainty[:(linespacing_width // 2)]
         )
     else:
         freqs_window = np.fft.rfftfreq(int(len(data) / multiple), resolution)
         freq_idxs = np.where(np.isin(freqs_window, psd_freqs))[0]
-        estimate[: (linespacing_width // 2)] = window_uncertainty[freq_idxs]
-        estimate[(linespacing_width // 2) :] = np.flip(window_uncertainty[freq_idxs])
+        estimate[:(linespacing_width//2)] = window_uncertainty[freq_idxs]
+        estimate[(linespacing_width//2):] = np.flip(window_uncertainty[freq_idxs])
 
     if verbose:
 

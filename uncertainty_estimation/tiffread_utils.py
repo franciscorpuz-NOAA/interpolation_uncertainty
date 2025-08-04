@@ -7,43 +7,46 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 
-def trace_function(func: Callable): 
+def trace_function(func: Callable):
     """
     Decorator used for debugging. Prints the input
     and corresponding outputs of the function "func"
-    
+
     Parameters
     -----------
     func : Callable
            Function to inspect
-     
+
     Returns
     --------
     """
     if not isinstance(func, Callable):
         raise TypeError(f"{func.__name__} is not a valid function.")
-        
+
     @functools.wraps(func)   
     def wrapper(*args, **kwargs):
         original_result = func(*args, **kwargs)
-        
+
         # print some diagnostics
         print(f"""
-              Tracing: {func.__name__}():
-              args: {args}
-              kwargs: {kwargs}
-              output: {original_result}
-              output_len: {len(original_result)}""")
-        
+        Tracing: {func.__name__}():
+        args: {args}
+        kwargs: {kwargs}
+        output: {original_result}
+        output_len: {len(original_result)}
+              """)
+
         # return function output
         return original_result
-    
+
     return wrapper
 
 
 def load_file(
-    filename: Union[str, Path], folder: Optional[str] = None, verbose: bool = False
-) -> Dict[str, Any]:
+        filename: Union[str, Path],
+        folder: Optional[str] = None,
+        verbose: bool = True) -> Dict[str, Any]:
+
     """
     Reads bathymetry data from a TIFF file.
 
@@ -151,18 +154,19 @@ def load_file(
                 f"Spatial resolution should be at least 1"
                 f"Resolution value from file: {resolution}"
             )
-
+            
     if verbose:
         # Print some statistics of the bathymetry data
         spatial_coverage_length = int(depth.shape[0] * resolution)
         spatial_coverage_width = int(depth.shape[1] * resolution)
         print(
-            f"""Input filename: {str(file_path)}
-              Data dimensions: {depth.shape}
-              Min/Max: {np.nanmin(depth), np.nanmax(depth)}
-              Survey Coverage: {spatial_coverage_length}m x {spatial_coverage_width}m
-              Spatial Resolution: {resolution}
-              """
+    f"""
+    Input filename: {str(file_path)}
+    Data dimensions: {depth.shape}
+    Min/Max: {np.nanmin(depth), np.nanmax(depth)}
+    Survey Coverage: {spatial_coverage_length}m x {spatial_coverage_width}m
+    Spatial Resolution: {resolution}
+    """
         )
 
     # Compile bathymetric data in a dictionary and return directly
@@ -177,8 +181,7 @@ def load_file(
 def remove_edge_Nans(
     depth: np.ndarray,
     ndv: Union[float, int, None, str],
-    max_iterations: Optional[int] = None,
-    verbose: bool = False,
+    max_iterations: Optional[int] = None
 ) -> np.ndarray:
     """
     Iteratively removes edge rows and columns containing no-data values.
@@ -196,8 +199,6 @@ def remove_edge_Nans(
     ndv : float or int or None
         The value representing "no-data" pixels within the `depth` array.
         This could be a specific number (e.g., -9999), `np.nan`, or `None`.
-    verbose : bool, optional
-        Optional flag to print some information on the processed array
     max_iteration : int, optional
         maximum number of iterations to be done
         Default is half the largest dimension
@@ -265,8 +266,6 @@ def remove_edge_Nans(
     # Set up value for max_iteration if none declared
     if max_iterations is None:
         max_iterations = int(np.max([original_shape[0], original_shape[1]]) / 2)
-        if verbose:
-            print("Setting max iteration to half the size of depth array")
 
     if ndv == np.nan:
         def is_ndv(data_array):
@@ -299,20 +298,6 @@ def remove_edge_Nans(
             have_ndv = False
         if shrink_idx > max_iterations:
             break
-
-    if verbose:
-        print(
-            f"""
-              Total of {shrink_idx} outer layers removed.
-              No data value: {ndv}
-              Original data size: {original_shape}
-              New data size: {elev.shape}
-            """
-        )
-        if shrink_idx >= max_iterations:
-            print(f"Warning: ({max_iterations}) max iterations was reached.")
-        if np.any(elev == ndv):
-            print("CRITICAL: Return data still contains NDV values.")
 
     return elev
 
