@@ -17,7 +17,8 @@ class Test_Utils_Functions(unittest.TestCase):
     def test_remove_edge_nans(self):
         test_surface = tiffread_utils.load_file('sample_tiff.tif', 'tests')
         raw_array = test_surface['depth']
-        new_surface = tiffread_utils.remove_edge_Nans(raw_array)
+        ndv_val = test_surface['ndv']
+        new_surface = tiffread_utils.remove_edge_Nans(raw_array, ndv=ndv_val)
         self.assertLessEqual(new_surface.size, raw_array.size)
         self.assertTrue(np.any(new_surface))
 

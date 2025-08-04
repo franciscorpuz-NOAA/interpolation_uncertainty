@@ -29,7 +29,11 @@ def preprocess_strip(data):
     """
     Remove the mean and apply a Hann window to the rows of the provided data array.
     """
-    row_means = np.mean(data)
+    row_means = np.array([np.mean(x) for x in data])
+    # if len(data.shape) > 1:
+    #     row_means = np.mean(data, axis=1)
+    # else:
+    #     row_means = np.mean(data)
     data = data - row_means
     shape = len(data)
     window = np.hanning(shape)
@@ -62,7 +66,7 @@ def amp_strip(data, resolution):
     """
     # shape = data.shape
     data = preprocess_strip(data)
-    fft_result = np.fft.rfft(data)
+    fft_result = np.fft.rfft(data, axis=1)
     amp_result = 2 * np.abs(fft_result)
     # drop zero frequency
     frequencies = np.fft.rfftfreq(len(data), resolution)[1:]
