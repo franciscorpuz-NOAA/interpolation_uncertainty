@@ -1,0 +1,23 @@
+# Auto-generated from pyproject.toml — do not edit by hand.
+# Regenerate: python scripts/sync_env_yml.py
+
+name: interpolation_uncertainty
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python<3.13
+  - gdal<3.11
+  - libgdal
+  - libgdal-hdf5
+  - notebook
+  - matplotlib
+  - numpy
+  - pillow
+  - scikit-image
+  - scikit-learn
+  - scipy
+  - tqdm
+  - pip
+  - pip:
+    - -e .
