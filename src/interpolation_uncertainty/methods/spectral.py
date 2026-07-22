@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def spectral_estimator(
+def compute_uncertainty(
     signal: np.ndarray,
     resolution: float,
     line_spacing: int,
@@ -143,8 +143,7 @@ def spectral_estimator(
         energy = energy * df / win_norm_pow
 
     elif method == "spectrum":
-        freqs = np.fft.rfftfreq(line_spacing, d=resolution)
-        energy = energy / len(freqs) / win_norm_pow
+        energy = energy / len(frequencies) / win_norm_pow
 
     else:
         raise ValueError(f"Unknown method '{method}'.")

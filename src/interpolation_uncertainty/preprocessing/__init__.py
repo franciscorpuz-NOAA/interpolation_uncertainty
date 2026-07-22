@@ -5,6 +5,7 @@ from .morphology import (
     filter_morphological_operations,
 )
 from .orientation import (
+    compute_dominant_angle_radon_transform,
     compute_local_orientation,
 )
 from .geometry import (

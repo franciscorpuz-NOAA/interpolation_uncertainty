@@ -1,6 +1,6 @@
 import numpy as np
 
-from interpolation_uncertainty.methods import get_estimator
+from interpolation_uncertainty.methods.spectral import compute_uncertainty
 
 
 def process_line_pair(
@@ -9,7 +9,6 @@ def process_line_pair(
     current_depth_raster: np.ndarray,
     resolution: float,
     method: str = 'psd',
-    **estimator_kwargs,
 ) -> dict | None:
     """Compute the RMS interpolation uncertainty for one pair of adjacent tracklines.
 
@@ -91,13 +90,11 @@ def process_line_pair(
     shared1 = shared1 - np.nanmean(shared1)
     shared2 = shared2 - np.nanmean(shared2)
 
-    # --- Look up the estimator from the registry (includes plugin methods) ---
-    compute_uncertainty = get_estimator(method)
-
+    # --- Spectral energy via compute_uncertainty ---
     seg_energy1, freqs = compute_uncertainty(shared1, resolution=resolution,
-                                             line_spacing=linespan, **estimator_kwargs)
+                                             line_spacing=linespan, method=method)
     seg_energy2, _     = compute_uncertainty(shared2, resolution=resolution,
-                                             line_spacing=linespan, **estimator_kwargs)
+                                             line_spacing=linespan, method=method)
 
     # --- Average spectra, then collapse to scalar RMS per segment ---
     avg_energy      = (seg_energy1 + seg_energy2) / 2.0  # (n_segments, n_freqs) m²/Hz
@@ -120,7 +117,6 @@ def build_uncertainty_raster(
     current_depth_raster: np.ndarray,
     resolution: float,
     method: str = 'psd',
-    **estimator_kwargs,
 ) -> np.ndarray:
     """Fill an uncertainty raster for all adjacent trackline pairs.
 
@@ -154,8 +150,7 @@ def build_uncertainty_raster(
 
     for col1, col2 in zip(peaks[:-1], peaks[1:]):
         result = process_line_pair(
-            (col1, col2), restored_mask, current_depth_raster, resolution,
-            method=method, **estimator_kwargs,
+            (col1, col2), restored_mask, current_depth_raster, resolution, method=method
         )
         if result is None:
             continue

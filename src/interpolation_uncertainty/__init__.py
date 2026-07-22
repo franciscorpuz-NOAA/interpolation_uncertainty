@@ -5,6 +5,7 @@ from .preprocessing import (
     filter_blobs_keep_lines,
     filter_squares_keep_lines,
     filter_morphological_operations,
+    compute_dominant_angle_radon_transform,
     compute_local_orientation,
     rotate_points,
     update_geotransform,
@@ -12,7 +13,7 @@ from .preprocessing import (
     undo_rotation,
     x_distance,
 )
-from .methods import spectral_estimator, statistical_estimator
+from .methods import compute_uncertainty
 from .pipeline import (
     detect_trackline_positions,
     assign_depths_to_lines,
