@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "interpolation_uncertainty"
-version = "0.0.1"
+version = "0.0.2"
 description = "Python Codes for testing various Uncertainty Estimation methods"
 requires-python = "<3.13"
 dependencies = [
