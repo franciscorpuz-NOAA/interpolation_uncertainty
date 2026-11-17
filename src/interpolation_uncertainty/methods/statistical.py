@@ -4,13 +4,13 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 def statistical_estimator(
     data: np.ndarray,
-    line_spacing,
+    resolution: int,
+    line_spacing: int,
     min_window: int = 2,
     multiple: int = 1,
     method: str = "SAR",
 ):
-    """
-    Efficiently compute uncertainty estimates statistically using sliding window
+    """Efficiently compute uncertainty estimates statistically using sliding window.
 
     Parameters
     ----------
